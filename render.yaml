@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: tuzakai
+    runtime: node
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && sh scripts/render-build.sh
+    startCommand: pnpm --filter @workspace/api-server run start
+    healthCheckPath: /api/healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: STATIC_WEB_ROOT
+        value: artifacts/api-server/dist/public
+      - key: DATABASE_URL
+        sync: false
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: VITE_CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: VITE_CLERK_PROXY_URL
+        value: /api/__clerk
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: TUZAKAI_ADMIN_USER_IDS
+        sync: false
