@@ -1,0 +1,762 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: tuzakai
+    description: TuzakAI jewelry designer
+  - name: store
+    description: TuzakAI digital products storefront
+paths:
+  /store/categories:
+    get:
+      operationId: listStoreCategories
+      tags: [store]
+      responses:
+        "200":
+          description: Categories with at least one published product
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/StoreCategory" }
+  /store/categories/{slug}:
+    parameters:
+      - in: path
+        name: slug
+        required: true
+        schema: { type: string }
+    get:
+      operationId: getStoreCategory
+      tags: [store]
+      responses:
+        "200":
+          description: Public category
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StoreCategory" }
+        "404": { description: Category not found }
+  /store/products:
+    get:
+      operationId: listStoreProducts
+      tags: [store]
+      parameters:
+        - in: query
+          name: category
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 24 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Published products only
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/StoreProduct" }
+  /store/products/{slug}:
+    parameters:
+      - in: path
+        name: slug
+        required: true
+        schema: { type: string }
+    get:
+      operationId: getStoreProduct
+      tags: [store]
+      responses:
+        "200":
+          description: Published product details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StoreProduct" }
+        "404": { description: Product not found }
+  /store/search:
+    get:
+      operationId: searchStoreProducts
+      tags: [store]
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 24 }
+      responses:
+        "200":
+          description: Published products matching the query
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/StoreProduct" }
+  /store/admin/categories:
+    get:
+      operationId: listAdminStoreCategories
+      tags: [store]
+      responses:
+        "200":
+          description: All categories for authorized administrators
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/StoreCategory" }
+        "403": { description: Not an authorized administrator }
+    post:
+      operationId: createAdminStoreCategory
+      tags: [store]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StoreCategoryInput" }
+      responses:
+        "201":
+          description: Created draft category
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StoreCategory" }
+        "400": { description: Invalid category }
+        "403": { description: Not an authorized administrator }
+  /store/admin/categories/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      operationId: updateAdminStoreCategory
+      tags: [store]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StoreCategoryUpdate" }
+      responses:
+        "200":
+          description: Updated category
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StoreCategory" }
+        "400": { description: Invalid category }
+        "403": { description: Not an authorized administrator }
+        "404": { description: Category not found }
+    delete:
+      operationId: deleteAdminStoreCategory
+      tags: [store]
+      responses:
+        "200":
+          description: Deleted category
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeleteResult" }
+        "403": { description: Not an authorized administrator }
+        "404": { description: Category not found }
+  /store/admin/products:
+    get:
+      operationId: listAdminStoreProducts
+      tags: [store]
+      responses:
+        "200":
+          description: All products, including drafts
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/StoreProduct" }
+        "403": { description: Not an authorized administrator }
+    post:
+      operationId: createAdminStoreProduct
+      tags: [store]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StoreProductInput" }
+      responses:
+        "201":
+          description: Created product draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StoreProduct" }
+        "400": { description: Invalid product or incomplete publish configuration }
+        "403": { description: Not an authorized administrator }
+  /store/admin/products/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getAdminStoreProduct
+      tags: [store]
+      responses:
+        "200":
+          description: Product including draft metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StoreProduct" }
+        "403": { description: Not an authorized administrator }
+        "404": { description: Product not found }
+    patch:
+      operationId: updateAdminStoreProduct
+      tags: [store]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StoreProductUpdate" }
+      responses:
+        "200":
+          description: Updated product
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StoreProduct" }
+        "400": { description: Invalid product or incomplete publish configuration }
+        "403": { description: Not an authorized administrator }
+        "404": { description: Product not found }
+    delete:
+      operationId: deleteAdminStoreProduct
+      tags: [store]
+      responses:
+        "200":
+          description: Deleted product
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeleteResult" }
+        "403": { description: Not an authorized administrator }
+        "404": { description: Product not found }
+  /store/support/tickets:
+    post:
+      operationId: submitStoreSupportTicket
+      tags: [store]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StoreSupportTicketInput" }
+      responses:
+        "201":
+          description: Submitted support ticket
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StoreSupportTicket" }
+        "400": { description: Invalid ticket }
+  /store/admin/support/tickets:
+    get:
+      operationId: listAdminStoreSupportTickets
+      tags: [store]
+      responses:
+        "200":
+          description: Support tickets for authorized administrators
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/StoreSupportTicket" }
+        "403": { description: Not an authorized administrator }
+  /store/admin/support/tickets/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      operationId: updateAdminStoreSupportTicket
+      tags: [store]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StoreSupportTicketUpdate" }
+      responses:
+        "200":
+          description: Updated support ticket
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StoreSupportTicket" }
+        "400": { description: Invalid ticket update }
+        "403": { description: Not an authorized administrator }
+        "404": { description: Ticket not found }
+  /tuzakai/settings:
+    get:
+      operationId: getTuzakaiSiteSettings
+      tags: [tuzakai]
+      responses:
+        "200":
+          description: Public website and verified contact details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TuzakaiPublicSettings" }
+  /tuzakai/admin/settings:
+    get:
+      operationId: getTuzakaiAdminSettings
+      tags: [tuzakai]
+      responses:
+        "200":
+          description: Owner-only website and contact settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TuzakaiAdminSettings" }
+        "403":
+          description: Not an authorized administrator
+    put:
+      operationId: updateTuzakaiAdminSettings
+      tags: [tuzakai]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TuzakaiSettingsUpdate" }
+      responses:
+        "200":
+          description: Updated owner-only settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TuzakaiAdminSettings" }
+        "403":
+          description: Not an authorized administrator
+  /tuzakai/components:
+    get:
+      operationId: listTuzakaiComponents
+      tags: [tuzakai]
+      responses:
+        "200":
+          description: Active components with configured or missing prices
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/JewelryComponent" }
+  /tuzakai/overview:
+    get:
+      operationId: getTuzakaiOverview
+      tags: [tuzakai]
+      responses:
+        "200":
+          description: Current visitor's design summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DesignOverview" }
+  /tuzakai/designs/preview:
+    post:
+      operationId: previewTuzakaiDesign
+      tags: [tuzakai]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JewelryDesignInput" }
+      responses:
+        "200":
+          description: Design profile and deterministic calculation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JewelryDesignProfile" }
+  /tuzakai/designs:
+    get:
+      operationId: listTuzakaiDesigns
+      tags: [tuzakai]
+      responses:
+        "200":
+          description: Designs saved in this browser session
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SavedJewelryDesign" }
+    post:
+      operationId: saveTuzakaiDesign
+      tags: [tuzakai]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JewelryDesignInput" }
+      responses:
+        "201":
+          description: Saved design with price snapshot
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SavedJewelryDesign" }
+  /tuzakai/designs/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getTuzakaiDesign
+      tags: [tuzakai]
+      responses:
+        "200":
+          description: Saved design
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SavedJewelryDesign" }
+    put:
+      operationId: updateTuzakaiDesign
+      tags: [tuzakai]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JewelryDesignInput" }
+      responses:
+        "200":
+          description: Updated design
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SavedJewelryDesign" }
+    delete:
+      operationId: deleteTuzakaiDesign
+      tags: [tuzakai]
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeleteResult" }
+  /tuzakai/assistant:
+    post:
+      operationId: askTuzakaiAssistant
+      tags: [tuzakai]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JewelryAssistantInput" }
+      responses:
+        "200":
+          description: Context-aware AI suggestion
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JewelryAssistantReply" }
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+components:
+  schemas:
+    TuzakaiSocialLinks:
+      type: object
+      required: [instagram, facebook, pinterest, youtube, tiktok]
+      properties:
+        instagram: { type: ["string", "null"] }
+        facebook: { type: ["string", "null"] }
+        pinterest: { type: ["string", "null"] }
+        youtube: { type: ["string", "null"] }
+        tiktok: { type: ["string", "null"] }
+    TuzakaiPublicSettings:
+      type: object
+      required: [websiteUrl, supportEmail, businessEmail, socialLinks]
+      properties:
+        websiteUrl: { type: string }
+        supportEmail: { type: ["string", "null"] }
+        businessEmail: { type: ["string", "null"] }
+        socialLinks: { $ref: "#/components/schemas/TuzakaiSocialLinks" }
+    TuzakaiAdminSettings:
+      type: object
+      required: [websiteUrl, supportEmail, businessEmail, socialLinks, updatedAt]
+      properties:
+        websiteUrl: { type: string }
+        supportEmail: { type: ["string", "null"] }
+        businessEmail: { type: ["string", "null"] }
+        socialLinks: { $ref: "#/components/schemas/TuzakaiSocialLinks" }
+        updatedAt: { type: string, format: date-time }
+    TuzakaiSettingsUpdate:
+      type: object
+      required: [websiteUrl, supportEmail, businessEmail, socialLinks]
+      properties:
+        websiteUrl: { type: string, format: uri, maxLength: 300 }
+        supportEmail: { type: ["string", "null"], maxLength: 254 }
+        businessEmail: { type: ["string", "null"], maxLength: 254 }
+        socialLinks: { $ref: "#/components/schemas/TuzakaiSocialLinks" }
+    JewelryComponent:
+      type: object
+      required: [id, name, category, jewelryTypes, material, color, size, unit, priceCents, supplier, supplierUrl, imageUrl, weightGrams, inventoryQuantity, notes, active]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        category: { type: string }
+        jewelryTypes: { type: array, items: { type: string } }
+        material: { type: string }
+        color: { type: string }
+        size: { type: string }
+        unit: { type: string }
+        priceCents: { type: ["integer", "null"] }
+        supplier: { type: ["string", "null"] }
+        supplierUrl: { type: ["string", "null"] }
+        imageUrl: { type: ["string", "null"] }
+        weightGrams: { type: ["number", "null"] }
+        inventoryQuantity: { type: ["integer", "null"] }
+        notes: { type: string }
+        active: { type: boolean }
+    JewelryDesignInput:
+      type: object
+      required: [jewelryType, style, shape, material, color, decoration, finding, size, quantity, priceOverrides, wastagePercent, laborMinutes, hourlyRateCents, packagingCents, otherCents, marginPercent, platformFeePercent, paymentFeePercent]
+      properties:
+        jewelryType: { type: string, minLength: 1 }
+        style: { type: string, minLength: 1 }
+        shape: { type: string, minLength: 1 }
+        material: { type: string, minLength: 1 }
+        color: { type: string, minLength: 1 }
+        decoration: { type: string, minLength: 1 }
+        finding: { type: string, minLength: 1 }
+        size: { type: string, minLength: 1 }
+        personalization: { type: string, maxLength: 32 }
+        budgetCents: { type: ["integer", "null"], minimum: 0 }
+        quantity: { type: integer, minimum: 1, maximum: 100 }
+        priceOverrides:
+          type: object
+          additionalProperties: { type: integer, minimum: 0 }
+        wastagePercent: { type: number, minimum: 0, maximum: 100 }
+        laborMinutes: { type: number, minimum: 0 }
+        hourlyRateCents: { type: integer, minimum: 0 }
+        packagingCents: { type: integer, minimum: 0 }
+        otherCents: { type: integer, minimum: 0 }
+        marginPercent: { type: number, minimum: 0, maximum: 99 }
+        platformFeePercent: { type: number, minimum: 0, maximum: 99 }
+        paymentFeePercent: { type: number, minimum: 0, maximum: 99 }
+    JewelryMaterialLine:
+      type: object
+      required: [componentId, name, quantity, unit, unitPriceCents, lineCostCents, priceSource]
+      properties:
+        componentId: { type: string }
+        name: { type: string }
+        quantity: { type: number }
+        unit: { type: string }
+        unitPriceCents: { type: ["integer", "null"] }
+        lineCostCents: { type: ["integer", "null"] }
+        priceSource: { type: string, enum: [configured, entered, missing] }
+    JewelryCost:
+      type: object
+      required: [rawMaterialsCents, wastageCents, laborCents, packagingCents, otherCents, productionCents, suggestedRetailCents, estimatedProfitCents, budgetRemainingCents, currency]
+      properties:
+        rawMaterialsCents: { type: ["integer", "null"] }
+        wastageCents: { type: ["integer", "null"] }
+        laborCents: { type: integer }
+        packagingCents: { type: integer }
+        otherCents: { type: integer }
+        productionCents: { type: ["integer", "null"] }
+        suggestedRetailCents: { type: ["integer", "null"] }
+        estimatedProfitCents: { type: ["integer", "null"] }
+        budgetRemainingCents: { type: ["integer", "null"] }
+        currency: { type: string, enum: [PKR] }
+    JewelryVariation:
+      type: object
+      required: [label, input, description, materials, cost, instructions]
+      properties:
+        label: { type: string }
+        input: { $ref: "#/components/schemas/JewelryDesignInput" }
+        description: { type: string }
+        materials:
+          type: array
+          items: { $ref: "#/components/schemas/JewelryMaterialLine" }
+        cost: { $ref: "#/components/schemas/JewelryCost" }
+        instructions:
+          type: array
+          items: { type: string }
+    JewelryDesignProfile:
+      type: object
+      required: [name, description, input, materials, cost, instructions, suggestions, warnings, variations, difficulty, estimatedMinutes, previewLabel]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        input: { $ref: "#/components/schemas/JewelryDesignInput" }
+        materials:
+          type: array
+          items: { $ref: "#/components/schemas/JewelryMaterialLine" }
+        cost: { $ref: "#/components/schemas/JewelryCost" }
+        instructions:
+          type: array
+          items: { type: string }
+        suggestions:
+          type: array
+          items: { type: string }
+        warnings:
+          type: array
+          items: { type: string }
+        variations:
+          type: array
+          items: { $ref: "#/components/schemas/JewelryVariation" }
+        difficulty: { type: string }
+        estimatedMinutes: { type: integer }
+        previewLabel: { type: string }
+    SavedJewelryDesign:
+      type: object
+      required: [id, name, profile, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        profile: { $ref: "#/components/schemas/JewelryDesignProfile" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    DesignOverview:
+      type: object
+      required: [designCount, recentDesigns, missingCatalogPrices]
+      properties:
+        designCount: { type: integer }
+        recentDesigns:
+          type: array
+          items: { $ref: "#/components/schemas/SavedJewelryDesign" }
+        missingCatalogPrices: { type: integer }
+    DeleteResult:
+      type: object
+      required: [success]
+      properties:
+        success: { type: boolean }
+    JewelryAssistantInput:
+      type: object
+      required: [question]
+      properties:
+        question: { type: string, minLength: 3, maxLength: 2000 }
+        design: { $ref: "#/components/schemas/JewelryDesignInput" }
+    JewelryAssistantReply:
+      type: object
+      required: [answer]
+      properties:
+        answer: { type: string }
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    StoreCategory:
+      type: object
+      required: [id, name, slug, description, active, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: ["string", "null"] }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    StoreCategoryInput:
+      type: object
+      required: [name, slug]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        slug: { type: string, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$", maxLength: 160 }
+        description: { type: ["string", "null"], maxLength: 2000 }
+        active: { type: boolean, default: false }
+    StoreCategoryUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        slug: { type: string, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$", maxLength: 160 }
+        description: { type: ["string", "null"], maxLength: 2000 }
+        active: { type: boolean }
+    StoreProduct:
+      type: object
+      required: [id, categoryId, categoryName, name, slug, productType, summary, description, features, requirements, imageUrl, whopProductId, whopProductUrl, deliveryUrl, deliveryInstructions, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        categoryId: { type: ["string", "null"], format: uuid }
+        categoryName: { type: ["string", "null"] }
+        name: { type: string }
+        slug: { type: string }
+        productType: { type: string, enum: [digital, ai_tool] }
+        summary: { type: ["string", "null"] }
+        description: { type: ["string", "null"] }
+        features: { type: array, items: { type: string } }
+        requirements: { type: array, items: { type: string } }
+        imageUrl: { type: ["string", "null"], format: uri }
+        whopProductId: { type: ["string", "null"] }
+        whopProductUrl: { type: ["string", "null"], format: uri }
+        deliveryUrl: { type: ["string", "null"], format: uri }
+        deliveryInstructions: { type: ["string", "null"] }
+        status: { type: string, enum: [draft, published, archived] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    StoreProductInput:
+      type: object
+      required: [name, slug, productType]
+      properties:
+        categoryId: { type: ["string", "null"], format: uuid }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        slug: { type: string, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$", maxLength: 200 }
+        productType: { type: string, enum: [digital, ai_tool] }
+        summary: { type: ["string", "null"], maxLength: 500 }
+        description: { type: ["string", "null"], maxLength: 10000 }
+        features: { type: array, items: { type: string, maxLength: 500 } }
+        requirements: { type: array, items: { type: string, maxLength: 500 } }
+        imageUrl: { type: ["string", "null"], format: uri }
+        whopProductId: { type: ["string", "null"], maxLength: 200 }
+        whopProductUrl: { type: ["string", "null"], format: uri }
+        deliveryUrl: { type: ["string", "null"], format: uri }
+        deliveryInstructions: { type: ["string", "null"], maxLength: 5000 }
+        status: { type: string, enum: [draft, published, archived], default: draft }
+    StoreProductUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        categoryId: { type: ["string", "null"], format: uuid }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        slug: { type: string, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$", maxLength: 200 }
+        productType: { type: string, enum: [digital, ai_tool] }
+        summary: { type: ["string", "null"], maxLength: 500 }
+        description: { type: ["string", "null"], maxLength: 10000 }
+        features: { type: array, items: { type: string, maxLength: 500 } }
+        requirements: { type: array, items: { type: string, maxLength: 500 } }
+        imageUrl: { type: ["string", "null"], format: uri }
+        whopProductId: { type: ["string", "null"], maxLength: 200 }
+        whopProductUrl: { type: ["string", "null"], format: uri }
+        deliveryUrl: { type: ["string", "null"], format: uri }
+        deliveryInstructions: { type: ["string", "null"], maxLength: 5000 }
+        status: { type: string, enum: [draft, published, archived] }
+    StoreSupportTicket:
+      type: object
+      required: [id, name, email, subject, message, productId, status, adminReply, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        subject: { type: string }
+        message: { type: string }
+        productId: { type: ["string", "null"], format: uuid }
+        status: { type: string, enum: [new, open, answered, closed] }
+        adminReply: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    StoreSupportTicketInput:
+      type: object
+      required: [name, email, subject, message]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        email: { type: string, format: email, maxLength: 254 }
+        subject: { type: string, minLength: 1, maxLength: 240 }
+        message: { type: string, minLength: 1, maxLength: 10000 }
+        productId: { type: ["string", "null"], format: uuid }
+    StoreSupportTicketUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        status: { type: string, enum: [new, open, answered, closed] }
+        adminReply: { type: ["string", "null"], maxLength: 10000 }
+
