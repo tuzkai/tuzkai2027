@@ -1,28 +1,28 @@
 kind = "web"
-previewPath = "/"
-title = "TuzakAI by Sztuzk"
-description = "AI tools and digital products for creative entrepreneurs, with a jewelry designer and practical legacy Studio tools."
+previewPath = "/tuzakai/"
+title = "TuzakAI Jewelry Designer by Sztuzk"
+description = "A jewelry design assistant for planning components, visual concepts, making steps, costs and prices."
 version = "1.0.0"
-id = "artifacts/sztuzk-jewelry-studio"
+id = "artifacts/tuzakai-jewelry-designer"
 router = "path"
 
 [[services]]
 name = "web"
-paths = [ "/" ]
-localPort = 25557
+paths = [ "/tuzakai/" ]
+localPort = 23466
 
 [services.development]
-run = "pnpm --filter @workspace/sztuzk-jewelry-studio run dev"
+run = "pnpm --filter @workspace/tuzakai-jewelry-designer run dev"
 
 [services.production]
-build = [ "pnpm", "--filter", "@workspace/sztuzk-jewelry-studio", "run", "build" ]
+build = [ "pnpm", "--filter", "@workspace/tuzakai-jewelry-designer", "run", "build" ]
 serve = "static"
-publicDir = "artifacts/sztuzk-jewelry-studio/dist/public"
+publicDir = "artifacts/tuzakai-jewelry-designer/dist/public"
 
 [[services.production.rewrites]]
 from = "/*"
 to = "/index.html"
 
 [services.env]
-PORT = "25557"
-BASE_PATH = "/"
+PORT = "23466"
+BASE_PATH = "/tuzakai/"

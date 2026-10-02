@@ -1,390 +1,164 @@
-import { useEffect, useRef } from 'react';
-import { ClerkProvider, Show, SignIn, SignUp, useClerk, useUser } from '@clerk/react';
-import { publishableKeyFromHost } from '@clerk/react/internal';
-import { shadcn } from '@clerk/themes';
+import { useEffect, useState, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
-import { getListAdminStoreProductsQueryKey, useListAdminStoreProducts } from '@workspace/api-client-react';
-import { Redirect, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
-import { SiteLayout, SiteLink as Link, toolLinks } from './components/site';
-import { StudioDashboard, IdeasPage, DesignPage, PricingPage, BusinessPage, EtsyPage } from './pages/tools';
-import { CustomPage, AboutPage, ContactPage, FAQPage, NotFoundPage } from './pages/public';
-import { HomePage, ShopPage, DigitalPage, AIToolsPage, CategoriesPage, SearchPage, CartPage, ProductPage } from './pages/store';
-import { PrivacyPage, TermsPage, DisclaimerPage, RefundPolicyPage, LicenseTermsPage } from './pages/legal';
-import { HelpCenterPage } from './pages/help';
-import SettingsPage from './pages/settings';
-import StoreAdminPage from './pages/store-admin';
+import { Link, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
+import { useForm } from 'react-hook-form';
+import { ArrowLeft, ArrowRight, BookOpen, Check, ChevronRight, CircleHelp, Copy, Download, Gem, Grid2X2, Layers2, Menu, Pencil, Plus, RotateCcw, Search, Send, Sparkles, Trash2, X } from 'lucide-react';
+import {
+  useGetTuzakaiOverview, useListTuzakaiComponents, useListTuzakaiDesigns, useGetTuzakaiDesign,
+  usePreviewTuzakaiDesign, useSaveTuzakaiDesign, useUpdateTuzakaiDesign, useDeleteTuzakaiDesign, useAskTuzakaiAssistant,
+  getGetTuzakaiOverviewQueryKey, getListTuzakaiDesignsQueryKey, getGetTuzakaiDesignQueryKey,
+  type JewelryDesignInput, type JewelryDesignProfile, type JewelryMaterialLine, type SavedJewelryDesign
+} from '@workspace/api-client-react';
+import { Form } from '@/components/ui/form';
+import { ErrorBoundary } from '@/components/error-boundary';
+import { Toaster } from '@/components/ui/toaster';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { JewelryVisual } from '@/components/JewelryVisual';
 
-const clerkPubKey = publishableKeyFromHost(
-  window.location.hostname,
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
-);
-
-const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
-const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
-const queryClient = new QueryClient();
-
-function stripBase(path: string): string {
-  return basePath && path.startsWith(basePath)
-    ? path.slice(basePath.length) || '/'
-    : path;
-}
-
-if (!clerkPubKey) {
-  throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in .env file');
-}
-
-const clerkAppearance = {
-  theme: shadcn,
-  cssLayerName: 'clerk',
-  options: {
-    logoPlacement: 'inside' as const,
-    logoLinkUrl: basePath || '/',
-    logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
-  },
-  variables: {
-    colorPrimary: '#342B25',
-    colorForeground: '#342B25',
-    colorMutedForeground: '#796E63',
-    colorDanger: '#9D3D37',
-    colorBackground: '#F7F4EE',
-    colorInput: '#FFFEFA',
-    colorInputForeground: '#342B25',
-    colorNeutral: '#DED3C3',
-    fontFamily: "'DM Sans', sans-serif",
-    borderRadius: '8px',
-  },
-  elements: {
-    rootBox: { width: '100%', display: 'flex', justifyContent: 'center' },
-    cardBox: {
-      width: '440px',
-      maxWidth: '100%',
-      overflow: 'hidden',
-      borderRadius: '16px',
-      backgroundColor: '#F7F4EE',
-      boxShadow: '0 16px 48px rgba(52, 43, 37, 0.12)',
-      border: '1px solid #E7DFD2',
-    },
-    card: { backgroundColor: 'transparent', boxShadow: 'none', border: 'none' },
-    footer: { backgroundColor: 'transparent', boxShadow: 'none', border: 'none' },
-    headerTitle: { color: '#342B25', fontFamily: "'DM Sans', sans-serif", fontWeight: 600 },
-    headerSubtitle: { color: '#796E63', fontFamily: "'DM Sans', sans-serif" },
-    socialButtonsBlockButtonText: { color: '#342B25', fontFamily: "'DM Sans', sans-serif" },
-    formFieldLabel: { color: '#342B25', fontFamily: "'DM Sans', sans-serif", fontWeight: 600 },
-    footerActionLink: { color: '#765B39', fontWeight: 600 },
-    footerActionText: { color: '#796E63' },
-    dividerText: { color: '#796E63' },
-    identityPreviewEditButton: { color: '#765B39' },
-    formFieldSuccessText: { color: '#496447' },
-    alertText: { color: '#7F302B' },
-    logoBox: { marginBottom: '12px' },
-    logoImage: { maxHeight: '56px', width: 'auto' },
-    socialButtonsBlockButton: {
-      backgroundColor: '#FFFEFA',
-      border: '1px solid #DED3C3',
-      borderRadius: '6px',
-    },
-    formButtonPrimary: {
-      backgroundColor: '#342B25',
-      color: '#F7F4EE',
-      borderRadius: '6px',
-      fontFamily: "'DM Sans', sans-serif",
-      fontWeight: 600,
-    },
-    formFieldInput: {
-      color: '#342B25',
-      backgroundColor: '#FFFEFA',
-      border: '1px solid #DED3C3',
-      borderRadius: '6px',
-      fontFamily: "'DM Sans', sans-serif",
-    },
-    footerAction: { backgroundColor: 'transparent' },
-    dividerLine: { backgroundColor: '#DED3C3' },
-    alert: { backgroundColor: '#F8E9E6', borderRadius: '6px' },
-    otpCodeFieldInput: {
-      color: '#342B25',
-      backgroundColor: '#FFFEFA',
-      borderColor: '#DED3C3',
-      borderRadius: '6px',
-    },
-    formFieldRow: { color: '#342B25' },
-    main: { backgroundColor: 'transparent' },
-  },
+const queryClient = new QueryClient({defaultOptions:{queries:{staleTime:15_000,refetchOnWindowFocus:true,retry:1}}});
+const TYPES=['Earrings','Bracelet','Necklace','Pendant','Ring','Anklet','Brooch','Keychain','Hair accessory'];
+const STYLES:Record<string,string[]> = {
+  Earrings:['Dangle','Stud','Hoop','Drop','Statement'], Bracelet:['Charm','Beaded','Chain','Cuff'],
+  Necklace:['Pendant','Layered','Beaded','Choker'], Pendant:['Minimal','Statement','Keepsake'],
+  Ring:['Stacking','Solitaire','Statement','Band'], Anklet:['Chain','Beaded','Charm'],
+  Brooch:['Floral','Classic','Statement'], Keychain:['Charm','Personalized','Minimal'],
+  'Hair accessory':['Clip','Pin','Comb','Barrette']
 };
-
-const pageMetadata: Record<string, [string, string]> = {
-  '/': [
-    'TuzakAI — AI Tools & Digital Products',
-    'TuzakAI by Sztuzk provides practical AI tools and digital products for creative entrepreneurs.',
-  ],
-  '/shop': ['Explore TuzakAI | AI Tools & Digital Products', 'Explore creative tools and digital resources from TuzakAI by Sztuzk.'],
-  '/custom-jewelry': ['Custom Jewelry Brief | TuzakAI', 'Prepare a personal jewelry idea brief in your browser with TuzakAI by Sztuzk.'],
-  '/jewelry-studio': ['Jewelry Studio Tools | TuzakAI by Sztuzk', 'Explore jewelry design, pricing, business planning, ideas, and listing tools.'],
-  '/jewelry-studio/design-generator': ['Jewelry Design Generator | TuzakAI', 'Turn a jewelry idea into an illustrative design concept with the TuzakAI Jewelry Studio.'],
-  '/jewelry-studio/pricing-calculator': ['Jewelry Pricing Calculator | TuzakAI', 'Estimate jewelry production costs, selling price, fees, and profit using your own costs.'],
-  '/jewelry-studio/start-business': ['Start a Jewelry Business | TuzakAI', 'Build a practical, beginner-friendly jewelry business roadmap.'],
-  '/jewelry-studio/etsy-listing': ['Etsy Listing Draft Tool | TuzakAI', 'Create an editable Etsy listing draft with a description, photo checklist, and suggested tags.'],
-  '/jewelry-studio/jewelry-ideas': ['Jewelry Ideas Generator | TuzakAI', 'Explore jewelry ideas based on style, materials, color, and skill.'],
-  '/digital-products': ['Digital Products | TuzakAI', 'Explore practical resources for creative entrepreneurs from TuzakAI by Sztuzk.'],
-  '/about': ['About TuzakAI by Sztuzk', 'Learn about TuzakAI, practical tools, and digital products for creative entrepreneurs.'],
-  '/contact': ['Contact & Support | TuzakAI', 'Find current support information and ways to get help with TuzakAI.'],
-  '/faq': ['Frequently Asked Questions | TuzakAI', 'Answers about TuzakAI tools, account access, saved work, estimates, and resources.'],
-  '/privacy': ['Privacy Policy | TuzakAI', 'Learn how TuzakAI handles account information, browser drafts, and site data.'],
-  '/terms': ['Terms of Use | TuzakAI', 'Read the terms for using TuzakAI tools and digital resources.'],
-  '/disclaimer': ['Disclaimer | TuzakAI', 'Understand the limits of generated ideas, estimates, and planning drafts.'],
-  '/help-center': ['Help Center | TuzakAI', 'Find answers, contact support, and get help with TuzakAI tools and your account.'],
-  '/refund-policy': ['Refund Policy | TuzakAI', 'Information about refunds while paid checkout is not active on TuzakAI.'],
-  '/license-terms': ['License Terms | TuzakAI', 'Information about digital product licenses while paid checkout is not active.'],
-  '/ai-tools': ['AI Tools | TuzakAI by Sztuzk', 'Explore creative AI tools and focused business-planning utilities from TuzakAI.'],
-  '/categories': ['Explore Categories | TuzakAI', 'Find a useful place to begin, from a first design to business decisions.'],
-  '/search': ['Search | TuzakAI', 'Search the TuzakAI tools, categories, and upcoming resources.'],
-  '/cart': ['Cart | TuzakAI', 'Review your cart and explore the TuzakAI digital resource library.'],
-  '/account': ['Your Account | TuzakAI', 'View your TuzakAI account details and manage your signed-in session.'],
-  '/account/purchases': ['Your Purchases | TuzakAI', 'View information about purchase history availability in your TuzakAI account.'],
-  '/account/tools': ['Your Tools | TuzakAI', 'Open the currently accessible tools from your TuzakAI account.'],
-  '/account/licenses': ['Your Licenses | TuzakAI', 'View information about license records in your TuzakAI account.'],
-  '/admin/settings': ['Admin Settings | TuzakAI', 'Manage the public website and social contact settings for TuzakAI.'],
-  '/admin/store': ['Store Catalog | TuzakAI', 'Manage TuzakAI products and categories.'],
-  '/sign-in': ['Sign In | TuzakAI', 'Sign in to your TuzakAI account.'],
-  '/sign-up': ['Create an Account | TuzakAI', 'Create your TuzakAI account.'],
+const SHAPES=['Flower','Round','Heart','Oval','Star','Geometric','Square','Teardrop'];
+const MATERIALS=['Resin','Polymer clay','Metal','Glass','Ceramic','Wood','Fabric','Acrylic','Pearl'];
+const COLORS=['Pink','Blush','Rose','Ivory','White','Blue','Green','Purple','Amber','Red','Black','Gold','Silver','Clear','Peach'];
+const DECORATIONS=['6mm pearls','Pearls','Gold flakes','Pressed flowers','Crystal beads','Seed beads','Glitter','Engraving','None'];
+const FINDINGS=['Gold hook','Silver hook','Gold stud','Silver stud','Gold chain','Silver chain','Gold clasp','Silver clasp','Gold pin','Silver pin','Gold keyring','Silver keyring','Hair clip'];
+const FINDINGS_BY_TYPE:Record<string,string[]> = {
+  Earrings:['Gold hook','Silver hook','Gold stud','Silver stud'],
+  Bracelet:['Gold clasp','Silver clasp','Gold chain','Silver chain'],
+  Necklace:['Gold chain','Silver chain','Gold clasp','Silver clasp'],
+  Pendant:['Gold chain','Silver chain'],
+  Ring:['Adjustable ring base'],
+  Anklet:['Gold clasp','Silver clasp','Gold chain','Silver chain'],
+  Brooch:['Gold pin','Silver pin'],
+  Keychain:['Gold keyring','Silver keyring'],
+  'Hair accessory':['Hair clip']
 };
-
-function Metadata() {
-  const [location] = useLocation();
-
-  useEffect(() => {
-    const path = location.split(/[?#]/, 1)[0] || '/';
-    const [title, description] = pageMetadata[path] ?? [
-      'TuzakAI — AI Tools & Digital Products',
-      'TuzakAI by Sztuzk provides practical AI tools and digital products for creative entrepreneurs.',
-    ];
-    const canonicalUrl = `https://tuzkai.com${path === '/' ? '/' : path}`;
-    document.title = title;
-    const setMeta = (attribute: 'name' | 'property', key: string, content: string) => {
-      let meta = document.head.querySelector<HTMLMetaElement>(`meta[${attribute}="${key}"]`);
-      if (!meta) {
-        meta = document.createElement('meta');
-        meta.setAttribute(attribute, key);
-        document.head.appendChild(meta);
-      }
-      meta.content = content;
-    };
-    setMeta('name', 'description', description);
-    setMeta('property', 'og:title', title);
-    setMeta('property', 'og:description', description);
-    setMeta('property', 'og:url', canonicalUrl);
-    setMeta('name', 'twitter:title', title);
-    setMeta('name', 'twitter:description', description);
-    let canonical = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
-    if (!canonical) {
-      canonical = document.createElement('link');
-      canonical.rel = 'canonical';
-      document.head.appendChild(canonical);
-    }
-    canonical.href = canonicalUrl;
-  }, [location]);
-  return null;
+const SIZES=['Small','Medium','Large','6mm','8mm','10mm','12mm','16cm','18cm','20cm','40cm','45cm','50cm','Adjustable'];
+const DEFAULT:JewelryDesignInput={jewelryType:'Earrings',style:'Dangle',shape:'Flower',material:'Resin',color:'Pink',decoration:'6mm pearls',finding:'Gold hook',size:'Medium',personalization:'',budgetCents:null,quantity:1,priceOverrides:{},wastagePercent:5,laborMinutes:30,hourlyRateCents:0,packagingCents:0,otherCents:0,marginPercent:25,platformFeePercent:0,paymentFeePercent:0};
+const money=(c:number|null|undefined)=>c==null?'Price not available':`PKR ${(c/100).toLocaleString('en-PK',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+const errorText=(error:unknown)=>error instanceof Error?error.message:'Something went wrong. Please try again.';
+const typeIcon=(type:string)=>type==='Earrings'?Gem:type==='Ring'?Sparkles:type==='Necklace'||type==='Bracelet'?Layers2:Grid2X2;
+function ErrorState({retry,message}:{retry:()=>void;message?:string}){return <div className="panel empty"><CircleHelp size={29}/><h3>Could not load this workspace</h3><p data-testid="status-error">{message||'The connection did not complete. Try again in a moment.'}</p><button data-testid="button-retry" className="btn" onClick={retry}><RotateCcw size={14}/> Retry</button></div>}
+function Loading({count=3}:{count?:number}){return <div aria-label="Loading content">{Array.from({length:count},(_,i)=><div className="skeleton" key={i}/>)}</div>}
+function Nav({close}:{close?:()=>void}) {
+  const [location]=useLocation();
+  const links=[['/','Overview',Grid2X2],['/create','Design workbench',Sparkles],['/designs','Saved designs',Layers2],['/materials','Materials catalog',Gem],['/help','How it works',CircleHelp]] as const;
+  return <><div className="nav-section">Workspace</div><nav aria-label="Main navigation">{links.map(([href,label,Icon])=><Link key={href} href={href} onClick={close} data-testid={`link-${href==='/'?'overview':href.slice(1)}`} className={`nav-link ${location===href||(href==='/designs'&&location.startsWith('/designs'))?'active':''}`}><Icon size={17} strokeWidth={1.7}/>{label}</Link>)}</nav></>;
 }
-
-function ClerkQueryClientCacheInvalidator() {
-  const { addListener } = useClerk();
-  const queryCache = useQueryClient();
-  const prevUserIdRef = useRef<string | null | undefined>(undefined);
-
-  useEffect(() => {
-    const unsubscribe = addListener(({ user }) => {
-      const userId = user?.id ?? null;
-      if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== userId) {
-        queryCache.clear();
-      }
-      prevUserIdRef.current = userId;
-    });
-    return unsubscribe;
-  }, [addListener, queryCache]);
-
-  return null;
-}
-
-function AccountPage() {
-  const { user, isLoaded } = useUser();
-  const { signOut, openUserProfile } = useClerk();
-  const adminCheck = useListAdminStoreProducts({
-    query: { queryKey: getListAdminStoreProductsQueryKey(), retry: false },
-  });
-  if (!isLoaded) return <div className="container" style={{ padding: '80px 0' }} role="status">Loading your account…</div>;
-  if (!user) return <Redirect to="/" />;
-
-  const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ');
-  const primaryEmail = user.primaryEmailAddress?.emailAddress;
-  return <div className="storefront account-page"><div className="store-page-intro"><div className="store-container"><div className="store-overline"><span>07 / YOUR ACCOUNT</span><span>TUZAKAI BY SZTUZK</span></div><div className="store-intro-row"><div><h1>Good to see you{user.firstName ? `, ${user.firstName}` : ''}.</h1><p>Your account, your details, and a place to return to the work.</p></div></div></div></div><div className="store-container account-grid"><section className="account-panel"><span className="store-kicker">PROFILE / 01</span><h2>Account details</h2><dl><div><dt>Name</dt><dd data-testid="text-account-name">{fullName || 'Not provided'}</dd></div><div><dt>Email</dt><dd data-testid="text-account-email">{primaryEmail || 'Not provided'}</dd></div></dl><button type="button" className="store-button store-button-dark" onClick={() => openUserProfile()} data-testid="button-manage-profile">Manage profile</button></section><section className="account-panel account-panel-tint"><span className="store-kicker">YOUR WORK / 02</span><h2>Keep creating.</h2><p>Purchases and downloads will appear here when the store is ready. For now, explore the tools and browse the growing collection.</p><a href={`${basePath}/tuzakai/`} className="store-text-link">Open Jewelry Designer →</a><a href={`${basePath}/shop`} className="store-text-link">Browse the shop →</a></section><div className="account-bottom">{adminCheck.isSuccess && <div className="account-admin-links"><a href={`${basePath}/admin/store`} className="store-text-link" data-testid="link-admin-store">Manage store catalog</a><a href={`${basePath}/admin/settings`} className="store-text-link">Site settings</a></div>}<button type="button" className="store-text-link account-signout" onClick={() => signOut({ redirectUrl: basePath || '/' })} data-testid="button-sign-out">Sign out →</button></div></div></div>;
-}
-
-function ProtectedAccount() {
-  return (
-    <>
-      <Show when="signed-in"><AccountPage /></Show>
-      <Show when="signed-out"><Redirect to="/sign-in" /></Show>
-    </>
-  );
-}
-
-function AccountPurchasesPage() {
-  return <AccountSectionPage title="Purchases" kicker="YOUR ACCOUNT / PURCHASES" description="A place for purchase history when verified purchase records are available.">
-    <section className="account-panel account-panel-tint">
-      <span className="store-kicker">PURCHASE HISTORY</span>
-      <h2>Checkout is not active</h2>
-      <p>Paid checkout is not currently available on TuzakAI. Purchase records have not been provided to this account view, so there is no verified history to display here.</p>
-      <p>This does not determine whether you have a purchase elsewhere. For help with a specific matter, contact support.</p>
-      <Link href="/contact" className="store-text-link">Contact / Support →</Link>
-    </section>
-  </AccountSectionPage>;
-}
-
-function AccountToolsPage() {
-  return <AccountSectionPage title="My AI Tools" kicker="YOUR ACCOUNT / TOOLS" description="Tools currently accessible on TuzakAI, with no paid unlock implied.">
-    <section className="account-panel account-panel-tint">
-      <span className="store-kicker">AVAILABLE TOOLS</span>
-      <h2>Explore the Studio</h2>
-      <p>The original Studio tools are currently accessible without sign-in and save their drafts in this browser. Signing in does not sync that work or unlock paid access.</p>
-      <Link href="/jewelry-studio" className="store-text-link">Open the original Studio →</Link>
-      <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
-        {toolLinks.map((tool) => <Link key={tool.path} href={tool.path} className="store-text-link">{tool.title} →</Link>)}
-      </div>
-      <Link href="/tuzakai/" className="store-text-link">Open TuzakAI Jewelry Designer →</Link>
-      <p className="fine">Designer saved work uses its separate browser workspace; it is not connected to this Clerk account.</p>
-    </section>
-  </AccountSectionPage>;
-}
-
-function AccountLicensesPage() {
-  return <AccountSectionPage title="Licenses" kicker="YOUR ACCOUNT / LICENSES" description="Information about license records associated with this account.">
-    <section className="account-panel account-panel-tint">
-      <span className="store-kicker">LICENSE RECORDS</span>
-      <h2>Records are not available here</h2>
-      <p>Paid checkout is not currently available, and license records have not been provided to this account view. This page cannot verify or display a license.</p>
-      <p>This is not a statement that you do or do not hold rights through another source. Check the terms supplied with any item obtained elsewhere, or contact support for help.</p>
-      <Link href="/contact" className="store-text-link">Contact / Support →</Link>
-    </section>
-  </AccountSectionPage>;
-}
-
-function AccountSectionPage({ title, kicker, description, children }: {
-  title: string;
-  kicker: string;
-  description: string;
-  children: React.ReactNode;
-}) {
-  return <div className="storefront account-page">
-    <div className="store-page-intro"><div className="store-container">
-      <div className="store-overline"><span>{kicker}</span><span>TUZAKAI BY SZTUZK</span></div>
-      <div className="store-intro-row"><div><h1>{title}</h1><p>{description}</p></div></div>
-    </div></div>
-    <div className="store-container account-grid">
-      {children}
-      <div className="account-bottom"><Link href="/account" className="store-text-link">← Back to your account</Link></div>
-    </div>
+function Shell({children}:{children:ReactNode}) {
+  const [location]=useLocation(),[open,setOpen]=useState(false);
+  const crumb=location==='/'?'Overview':location==='/create'?'Design workbench':location.startsWith('/designs/')?'Design details':location==='/designs'?'Saved designs':location==='/materials'?'Materials catalog':'Help';
+  useEffect(()=>{setOpen(false);document.title=`${crumb} · TuzakAI Jewelry Designer by Sztuzk`;},[location,crumb]);
+  return <div className="app-shell">
+    <aside className="sidebar"><Link href="/" className="brand" data-testid="link-brand"><span className="brand-mark">t</span><span><span className="brand-name">TuzakAI</span><span className="brand-sub">Jewelry designer</span></span></Link><Nav/><div className="sidebar-bottom"><strong>Make something yours.</strong>A practical design desk from TuzakAI by Sztuzk.<br/><br/>Prices shown in PKR.<br/><a href="/" style={{display:'inline-block',marginTop:12,fontSize:12,color:'inherit',textDecoration:'underline'}}>TuzakAI home</a></div></aside>
+    <header className="mobile-header"><Link href="/" className="brand" data-testid="link-mobile-brand"><span className="brand-mark">t</span><span><span className="brand-name">TuzakAI</span><span className="brand-sub">Jewelry designer</span></span></Link><button className="btn btn-sm" aria-label={open?'Close menu':'Open menu'} data-testid="button-mobile-menu" onClick={()=>setOpen(!open)}>{open?<X size={18}/>:<Menu size={18}/>}</button>{open&&<div className="mobile-menu"><Nav close={()=>setOpen(false)}/></div>}</header>
+    <main className="main"><div className="topbar"><div className="crumb">Studio workspace <ChevronRight size={12} style={{display:'inline',verticalAlign:'middle',margin:'0 6px'}}/><strong>{crumb}</strong></div><div className="top-right"><span><span className="status-dot"/>TuzakAI by Sztuzk</span><span>·</span><span>MAKER'S DESK / 01</span></div></div>{children}</main>
   </div>;
 }
-
-function ProtectedAccountSection({ children }: { children: React.ReactNode }) {
-  return <><Show when="signed-in">{children}</Show><Show when="signed-out"><Redirect to="/sign-in" /></Show></>;
+function PageHeading({eyebrow,title,subtitle,action}:{eyebrow:string;title:string;subtitle:string;action?:ReactNode}) {return <div style={{display:'flex',justifyContent:'space-between',alignItems:'end',gap:16,flexWrap:'wrap',marginBottom:25}}><div><div className="eyebrow">{eyebrow}</div><h1>{title}</h1><p className="muted" style={{fontSize:13,margin:0,lineHeight:1.6}}>{subtitle}</p></div>{action}</div>}
+function PreviewStage({input,label}:{input:JewelryDesignInput;label?:string}) {return <div className="panel preview-card"><div className="preview-stage"><JewelryVisual input={input}/></div><div className="preview-caption"><strong>{label||`${input.color} ${input.shape.toLowerCase()} ${input.jewelryType.toLowerCase()}`}</strong><span>Selection-based sketch</span></div></div>}
+function DesignRow({design,actions=true}:{design:SavedJewelryDesign;actions?:boolean}) {
+  const qc=useQueryClient(),[,navigate]=useLocation(),duplicate=useSaveTuzakaiDesign(),remove=useDeleteTuzakaiDesign(),[message,setMessage]=useState('');
+  const refresh=()=>{qc.invalidateQueries({queryKey:getListTuzakaiDesignsQueryKey()});qc.invalidateQueries({queryKey:getGetTuzakaiOverviewQueryKey()});};
+  return <article className="panel list-card" data-testid={`card-design-${design.id}`}><div className="mini-art"><JewelryVisual input={design.profile.input}/></div><div className="item-body"><h3>{design.name}</h3><p>{design.profile.input.jewelryType} · {design.profile.input.material} · {design.profile.input.color} · Updated {new Date(design.updatedAt).toLocaleDateString()}</p>{message&&<p role="alert" data-testid={`status-design-${design.id}`} style={{color:'#a23e3c',marginTop:5}}>{message}</p>}</div>{actions?<div className="actions" style={{display:'flex',gap:5,flexWrap:'wrap'}}><Link href={`/designs/${design.id}`} className="btn btn-sm" data-testid={`link-open-${design.id}`}>Open <ArrowRight size={13}/></Link><Link href={`/designs/${design.id}/edit`} className="btn btn-sm btn-ghost" data-testid={`link-edit-${design.id}`}><Pencil size={13}/> Edit</Link><button className="btn btn-sm btn-ghost" data-testid={`button-duplicate-${design.id}`} disabled={duplicate.isPending} onClick={()=>duplicate.mutate({data:design.profile.input},{onSuccess:(saved)=>{refresh();navigate(`/designs/${saved.id}`)},onError:(e)=>setMessage(errorText(e))})}><Copy size={13}/> Duplicate</button><button className="btn btn-sm btn-ghost btn-danger" data-testid={`button-delete-${design.id}`} disabled={remove.isPending} onClick={()=>{if(window.confirm(`Delete “${design.name}”? This cannot be undone.`))remove.mutate({id:design.id},{onSuccess:refresh,onError:(e)=>setMessage(errorText(e))})}}><Trash2 size={13}/> Delete</button></div>:<Link href={`/designs/${design.id}`} className="btn btn-sm" data-testid={`link-recent-${design.id}`}>Open <ArrowRight size={13}/></Link>}</article>;
 }
-
-function ProtectedSettings() {
-  return (
-    <>
-      <Show when="signed-in"><SettingsPage /></Show>
-      <Show when="signed-out"><Redirect to="/sign-in" /></Show>
-    </>
-  );
+function Home(){
+  const overview=useGetTuzakaiOverview();
+  return <Shell><div className="page"><div className="hero"><div className="hero-copy"><div className="eyebrow">TuzakAI by Sztuzk / Your making space</div><h1>From idea to<br/><em>made by you.</em></h1><p>Shape your piece, check the materials and work out the real costs before you pick up your tools.</p><Link href="/create" className="btn btn-primary" data-testid="link-start-design">Start a design <ArrowRight size={15}/></Link></div><div className="hero-art"><JewelryVisual input={DEFAULT}/></div></div>
+  {overview.isLoading?<div style={{marginTop:18}}><Loading count={1}/></div>:overview.isError?<div style={{marginTop:18}}><ErrorState retry={()=>overview.refetch()} message={errorText(overview.error)}/></div>:<div className="stat-row"><div className="panel stat"><span className="stat-label">Saved designs</span><strong className="stat-value" data-testid="text-design-count">{overview.data?.designCount??0}</strong><div className="stat-note">Ideas in your collection</div></div><div className="panel stat"><span className="stat-label">Catalog prices missing</span><strong className="stat-value" data-testid="text-missing-prices">{overview.data?.missingCatalogPrices??0}</strong><div className="stat-note">Supply your own prices in a design</div></div><div className="panel stat"><span className="stat-label">Your next step</span><strong className="stat-value" style={{fontSize:23}}>Make a piece</strong><div className="stat-note">Choose, preview, cost, save</div></div></div>}
+  <div className="section-head"><div><div className="eyebrow" style={{marginBottom:8}}>Pick up where you left off</div><h2>Recent designs</h2></div><Link href="/designs" className="btn btn-sm" data-testid="link-view-all">View all <ArrowRight size={13}/></Link></div>
+  {overview.isLoading?<Loading count={2}/>:overview.data?.recentDesigns?.length?<div className="list">{overview.data.recentDesigns.map(d=><DesignRow key={d.id} design={d} actions={false}/>)}</div>:<div className="panel empty"><Gem size={27}/><h3>A clear workbench, ready for you.</h3><p>Your saved designs will appear here. Start with a shape, material, and finding to make the first one.</p><Link href="/create" className="btn btn-primary" data-testid="link-create-first">Create your first design <ArrowRight size={14}/></Link></div>}
+  <div className="help-grid"><div className="panel help-card"><div className="eyebrow">01 / Explore</div><h3>Know your materials</h3><p>Browse the component catalog and see which prices are configured, which are missing, and where they came from.</p><Link href="/materials" className="btn btn-sm" style={{marginTop:18}} data-testid="link-home-materials">Browse materials <ArrowRight size={13}/></Link></div><div className="panel help-card"><div className="eyebrow">02 / Make</div><h3>A plan, not a guess</h3><p>Each preview gives you a bill of materials, making steps, warnings, variations, and a cost only when its material prices are known.</p><Link href="/help" className="btn btn-sm" style={{marginTop:18}} data-testid="link-home-help">See the workflow <ArrowRight size={13}/></Link></div></div>
+  </div></Shell>;
 }
-
-function ProtectedStoreAdmin() {
-  return <><Show when="signed-in"><StoreAdminPage /></Show><Show when="signed-out"><Redirect to="/sign-in" /></Show></>;
+function Field({name,label,options,form}:{name:keyof JewelryDesignInput;label:string;options:string[];form:ReturnType<typeof useForm<JewelryDesignInput>>}) {return <div className="field"><label htmlFor={`field-${name}`}>{label}</label><select id={`field-${name}`} data-testid={`select-${name}`} value={String(form.watch(name)||'')} onChange={e=>form.setValue(name,e.target.value as never,{shouldDirty:true})}>{options.map(x=><option key={x} value={x}>{x}</option>)}</select></div>}
+function NumberField({label,name,form,moneyField=false,min=0,max,step}:{label:string;name:keyof JewelryDesignInput;form:ReturnType<typeof useForm<JewelryDesignInput>>;moneyField?:boolean;min?:number;max?:number;step?:number}) {
+  const value=form.watch(name) as number|null;
+  return <div className="field"><label htmlFor={`field-${name}`}>{label}{moneyField?' (PKR)':''}</label><input id={`field-${name}`} data-testid={`input-${name}`} type="number" min={min} max={max} step={step??(moneyField?'0.01':'1')} value={value==null?'':moneyField?value/100:value} onChange={e=>form.setValue(name,(e.target.value===''&&name==='budgetCents'?null:moneyField?Math.max(0,Math.round(Number(e.target.value)*100)):Number(e.target.value)) as never,{shouldDirty:true})}/></div>;
 }
-
-function SignInPage() {
-  return (
-    <div style={{ minHeight: '70dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 20px' }}>
-      <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
-    </div>
-  );
+function CostPanel({profile,onOverride,overrides,updating,readOnly=false}:{profile:JewelryDesignProfile;onOverride:(id:string,value:string)=>void;overrides:Record<string,number>;updating:boolean;readOnly?:boolean}) {
+  const missing=profile.materials.filter(m=>m.priceSource==='missing');
+  return <><div className="eyebrow" style={{marginBottom:9}}>Bill of materials / {profile.materials.length} components</div>{profile.materials.map((line:JewelryMaterialLine)=><div className="material-line" key={line.componentId} data-testid={`row-material-${line.componentId}`}><div><strong>{line.name}</strong><small>{line.quantity} {line.unit} · <span className="price-source">{line.priceSource==='configured'?'Catalog price':line.priceSource==='entered'?'Your entered price':'Price missing'}</span></small></div><div style={{textAlign:'right'}}>{line.lineCostCents==null?<span className="missing small">Missing</span>:<strong>{money(line.lineCostCents)}</strong>}<small>{line.unitPriceCents==null?'No unit price':`${money(line.unitPriceCents)} / ${line.unit}`}</small></div>{!readOnly&&<div className="field full" style={{marginTop:5}}><label htmlFor={`price-${line.componentId}`}>Your unit price (PKR) {line.priceSource==='missing'?'· required for total':'· optional override'}</label><input className="price-input" style={{width:'100%',textAlign:'left'}} id={`price-${line.componentId}`} data-testid={`input-price-${line.componentId}`} type="number" min="0" step=".01" placeholder={line.priceSource==='missing'?'Enter your supplier price':'Leave blank to use catalog price'} value={overrides[line.componentId]===undefined?'':overrides[line.componentId]/100} onChange={e=>onOverride(line.componentId,e.target.value)}/></div>}</div>)}
+  {updating&&<p className="small muted" role="status">Recalculating your preview…</p>}
+  {missing.length>0?<div className="note" style={{marginTop:14}} data-testid="status-missing-cost">A total is not available: {missing.length} material price{missing.length===1?' is':'s are'} missing. Enter a unit price above, then recalculate.</div>:null}
+  <div className="total-row"><span>Raw materials</span><span>{money(profile.cost.rawMaterialsCents)}</span></div>
+  <div className="total-row"><span>Wastage allowance</span><span>{money(profile.cost.wastageCents)}</span></div>
+  <div className="total-row"><span>Labor</span><span>{money(profile.cost.laborCents)}</span></div>
+  <div className="total-row"><span>Additional packaging</span><span>{money(profile.cost.packagingCents)}</span></div>
+  <div className="total-row"><span>Other costs</span><span>{money(profile.cost.otherCents)}</span></div>
+  <div className="total-row"><span>Production cost</span><strong>{money(profile.cost.productionCents)}</strong></div>
+  <div className="total-row"><span>Suggested retail<br/><small className="muted">Includes margin and entered platform/payment fees</small></span><strong data-testid="text-retail-total">{money(profile.cost.suggestedRetailCents)}</strong></div>
+  <div className="total-row"><span>Estimated profit after fees</span><span>{money(profile.cost.estimatedProfitCents)}</span></div>
+  {profile.input.budgetCents!=null&&<div className="total-row"><span>Budget remaining</span><span>{profile.cost.budgetRemainingCents==null?'Price not available':money(profile.cost.budgetRemainingCents)}</span></div>}</>;
 }
-
-function SignUpPage() {
-  return (
-    <div style={{ minHeight: '70dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 20px' }}>
-      <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
-    </div>
-  );
+function Assistant({input}:{input:JewelryDesignInput}) {
+  const [question,setQuestion]=useState(''),[answer,setAnswer]=useState(''),ask=useAskTuzakaiAssistant();
+  return <div className="panel assistant-card"><div className="eyebrow" style={{marginBottom:8}}>A second set of eyes</div><h3>Ask the studio assistant</h3><p>Ask a practical question about your current design, materials, or making process.</p><form onSubmit={e=>{e.preventDefault();if(question.trim().length<3)return;setAnswer('');ask.mutate({data:{question:question.trim(),design:input}},{onSuccess:r=>setAnswer(r.answer)})}}><input data-testid="input-assistant-question" aria-label="Question for assistant" placeholder="e.g. Which finding suits this piece?" minLength={3} maxLength={2000} value={question} onChange={e=>setQuestion(e.target.value)}/><button className="btn btn-primary" data-testid="button-ask-assistant" disabled={ask.isPending} type="submit" aria-label="Ask assistant"><Send size={14}/></button></form>{ask.isPending?<div className="skeleton" style={{height:60,marginTop:15}}/>:ask.isError?<div className="warning" role="alert" data-testid="status-assistant-error">{errorText(ask.error)}</div>:answer?<div className="answer" data-testid="text-assistant-answer">{answer}</div>:null}</div>;
 }
-
-function SiteRoutes() {
-  const [, setLocation] = useLocation();
-  return (
-    <ClerkProvider
-      publishableKey={clerkPubKey}
-      proxyUrl={clerkProxyUrl}
-      appearance={clerkAppearance}
-      signInUrl={`${basePath}/sign-in`}
-      signUpUrl={`${basePath}/sign-up`}
-      localization={{
-        signIn: { start: { title: 'Welcome back', subtitle: 'Sign in to your TuzakAI account' } },
-        signUp: { start: { title: 'Create your account', subtitle: 'Get started with TuzakAI' } },
-      }}
-      routerPush={(to) => setLocation(stripBase(to))}
-      routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
-    >
-      <QueryClientProvider client={queryClient}>
-        <ClerkQueryClientCacheInvalidator />
-        <Metadata />
-        <SiteLayout>
-          <Switch>
-             <Route path="/" component={HomePage} />
-            <Route path="/sign-in/*?" component={SignInPage} />
-            <Route path="/sign-up/*?" component={SignUpPage} />
-            <Route path="/account" component={ProtectedAccount} />
-            <Route path="/account/purchases"><ProtectedAccountSection><AccountPurchasesPage /></ProtectedAccountSection></Route>
-            <Route path="/account/tools"><ProtectedAccountSection><AccountToolsPage /></ProtectedAccountSection></Route>
-            <Route path="/account/licenses"><ProtectedAccountSection><AccountLicensesPage /></ProtectedAccountSection></Route>
-            <Route path="/admin/settings" component={ProtectedSettings} />
-             <Route path="/admin/store" component={ProtectedStoreAdmin} />
-            <Route path="/shop" component={ShopPage} />
-             <Route path="/products/:slug" component={ProductPage} />
-            <Route path="/custom-jewelry" component={CustomPage} />
-            <Route path="/jewelry-studio" component={StudioDashboard} />
-            <Route path="/jewelry-studio/design-generator" component={DesignPage} />
-            <Route path="/jewelry-studio/pricing-calculator" component={PricingPage} />
-            <Route path="/jewelry-studio/start-business" component={BusinessPage} />
-            <Route path="/jewelry-studio/etsy-listing" component={EtsyPage} />
-            <Route path="/jewelry-studio/jewelry-ideas" component={IdeasPage} />
-            <Route path="/digital-products" component={DigitalPage} />
-            <Route path="/ai-tools" component={AIToolsPage} />
-            <Route path="/categories" component={CategoriesPage} />
-            <Route path="/search" component={SearchPage} />
-            <Route path="/cart" component={CartPage} />
-            <Route path="/about" component={AboutPage} />
-            <Route path="/contact" component={ContactPage} />
-            <Route path="/faq" component={FAQPage} />
-            <Route path="/help-center" component={HelpCenterPage} />
-            <Route path="/privacy" component={PrivacyPage} />
-            <Route path="/terms" component={TermsPage} />
-            <Route path="/disclaimer" component={DisclaimerPage} />
-            <Route path="/refund-policy" component={RefundPolicyPage} />
-            <Route path="/license-terms" component={LicenseTermsPage} />
-            <Route component={NotFoundPage} />
-          </Switch>
-        </SiteLayout>
-      </QueryClientProvider>
-    </ClerkProvider>
-  );
+function Editor(){
+  const params=useParams<{id?:string}>(),editId=params.id;
+  const detail=useGetTuzakaiDesign(editId||'',{query:{enabled:!!editId,queryKey:getGetTuzakaiDesignQueryKey(editId||'')}});
+  if(editId&&detail.isLoading)return <Shell><div className="page"><Loading count={4}/></div></Shell>;
+  if(editId&&detail.isError)return <Shell><div className="page"><ErrorState retry={()=>detail.refetch()} message={errorText(detail.error)}/></div></Shell>;
+  return <EditorBody key={editId||'new'} editId={editId} saved={detail.data}/>;
 }
-
-function App() {
-  return (
-    <WouterRouter base={basePath}>
-      <SiteRoutes />
-    </WouterRouter>
-  );
+function EditorBody({editId,saved}:{editId?:string;saved?:SavedJewelryDesign}){
+  const form=useForm<JewelryDesignInput>({defaultValues:saved?.profile.input||DEFAULT});
+  const input=form.watch();
+  const qc=useQueryClient(),[,navigate]=useLocation();
+  const [profile,setProfile]=useState<JewelryDesignProfile|null>(saved?.profile||null),[tab,setTab]=useState('materials'),[message,setMessage]=useState(''),[stale,setStale]=useState(false);
+  const preview=usePreviewTuzakaiDesign(),save=useSaveTuzakaiDesign(),update=useUpdateTuzakaiDesign();
+  const doPreview=(data:JewelryDesignInput)=>{setMessage('');preview.mutate({data},{onSuccess:p=>{setProfile(p);setStale(false)},onError:e=>setMessage(errorText(e))})};
+  const doSave=(data:JewelryDesignInput)=>{setMessage('');if(editId)update.mutate({id:editId,data},{onSuccess:d=>{qc.setQueryData(getGetTuzakaiDesignQueryKey(editId),d);qc.invalidateQueries({queryKey:getListTuzakaiDesignsQueryKey()});qc.invalidateQueries({queryKey:getGetTuzakaiOverviewQueryKey()});navigate(`/designs/${d.id}`)},onError:e=>setMessage(errorText(e))});else save.mutate({data},{onSuccess:d=>{qc.invalidateQueries({queryKey:getListTuzakaiDesignsQueryKey()});qc.invalidateQueries({queryKey:getGetTuzakaiOverviewQueryKey()});navigate(`/designs/${d.id}`)},onError:e=>setMessage(errorText(e))})};
+  const change=(name:keyof JewelryDesignInput,value:unknown)=>{form.setValue(name,value as never,{shouldDirty:true});setStale(true)};
+  const override=(id:string,value:string)=>{const next={...input.priceOverrides};if(value.trim()==='')delete next[id];else next[id]=Math.max(0,Math.round(Number(value)*100));change('priceOverrides',next)};
+  const type=input.jewelryType||'Earrings';
+  return <Shell><div className="page"><PageHeading eyebrow={editId?'Your collection / Edit design':'New project / Design workbench'} title={editId?'Refine your design.':'Make the idea real.'} subtitle="Choose the details, generate a practical making plan, then save it to your collection." action={editId?<Link href={`/designs/${editId}`} className="btn" data-testid="link-back-detail"><ArrowLeft size={14}/> Back to design</Link>:undefined}/>
+    <div className="editor-layout"><Form {...form}><form className="panel editor-form" onSubmit={form.handleSubmit(doSave)} onChange={()=>setStale(true)}>
+      <div className="eyebrow" style={{marginBottom:8}}>01 / Your design</div><h2>Build the piece</h2><p className="intro">Start with the kind of jewelry, then give it character.</p>
+      <div className="form-section" style={{borderTop:0,paddingTop:0,marginTop:0}}><div className="form-section-title"><span className="step">01</span><h3>What are you making?</h3></div><div className="type-grid">{TYPES.map(t=>{const Icon=typeIcon(t);return <button type="button" key={t} data-testid={`button-type-${t.replace(/\s/g,'-').toLowerCase()}`} className={`type-btn ${type===t?'selected':''}`} onClick={()=>{change('jewelryType',t);change('style',STYLES[t][0]);change('finding',FINDINGS_BY_TYPE[t][0])}}><Icon size={17} strokeWidth={1.5}/>{t}</button>})}</div></div>
+      <div className="form-section"><div className="form-section-title"><span className="step">02</span><h3>Form & finish</h3></div><div className="fields"><Field name="style" label="Style" options={STYLES[type]||STYLES.Earrings} form={form}/><Field name="shape" label="Shape" options={SHAPES} form={form}/><Field name="material" label="Main material" options={MATERIALS} form={form}/><Field name="color" label="Color" options={COLORS} form={form}/><Field name="decoration" label="Decoration" options={DECORATIONS} form={form}/><Field name="finding" label="Finding / hardware" options={FINDINGS_BY_TYPE[type]||FINDINGS} form={form}/><Field name="size" label="Size" options={SIZES} form={form}/><div className="field"><label htmlFor="personalization">Personalization</label><input id="personalization" data-testid="input-personalization" maxLength={32} placeholder="Initials or a short note" {...form.register('personalization')}/></div></div></div>
+       <div className="form-section"><div className="form-section-title"><span className="step">03</span><h3>Plan your costs</h3></div><div className="fields"><NumberField label="Quantity" name="quantity" form={form} min={1} max={100}/><NumberField label="Budget" name="budgetCents" form={form} moneyField/><NumberField label="Wastage %" name="wastagePercent" form={form} max={100}/><NumberField label="Labor minutes" name="laborMinutes" form={form}/><NumberField label="Hourly rate" name="hourlyRateCents" form={form} moneyField/><NumberField label="Additional packaging" name="packagingCents" form={form} moneyField/><NumberField label="Other costs" name="otherCents" form={form} moneyField/><NumberField label="Margin %" name="marginPercent" form={form} max={99}/><NumberField label="Platform fee %" name="platformFeePercent" form={form} max={99}/><NumberField label="Payment fee %" name="paymentFeePercent" form={form} max={99}/></div><p className="small muted" style={{margin:'14px 0 0'}}>Enter actual costs in PKR. Jewelry card and pouch are already included in materials; this packaging field is for extra costs only. Component unit prices are entered after preview.</p></div>
+      <div className="editor-actions"><button type="button" className="btn btn-primary" data-testid="button-preview-design" disabled={preview.isPending} onClick={()=>doPreview(form.getValues())}><Sparkles size={15}/>{preview.isPending?'Calculating…':profile?'Recalculate preview':'Generate preview'}</button><button type="submit" className="btn" data-testid="button-save-design" disabled={save.isPending||update.isPending}><Check size={15}/>{save.isPending||update.isPending?'Saving…':editId?'Save changes':'Save design'}</button></div>{message&&<div className="warning" role="alert" data-testid="status-editor-error">{message}</div>}
+    </form></Form>
+    <div className="sticky-column"><PreviewStage input={input} label={profile&&!stale?profile.previewLabel:undefined}/>
+      <div className="panel result-card"><div className="eyebrow" style={{marginBottom:8}}>02 / Making plan</div><h3>{profile?profile.name:'Preview your plan'}</h3><p>{profile?profile.description:'Your bill of materials, cost breakdown, and making steps will appear here when you generate a preview.'}</p>
+      {stale&&profile&&<div className="note" style={{marginBottom:15}} data-testid="status-stale-preview">Selections changed since this plan was calculated. Recalculate to see updated materials and costs.</div>}
+      {preview.isPending?<Loading count={2}/>:profile?<><div className="result-meta"><span className="pill">{profile.difficulty}</span><span className="pill">About {profile.estimatedMinutes} min</span><span className="pill">{profile.materials.length} materials</span></div><div className="tabs">{[['materials','Materials & cost'],['steps','Making steps'],['notes','Notes & variations']].map(([key,label])=><button type="button" key={key} data-testid={`button-tab-${key}`} className={`tab ${tab===key?'active':''}`} onClick={()=>setTab(key)}>{label}</button>)}</div>
+      {tab==='materials'?<CostPanel profile={profile} overrides={input.priceOverrides} onOverride={override} updating={preview.isPending}/>:tab==='steps'?<div><ol className="ordered">{profile.instructions.map((step,i)=><li key={i}>{step}</li>)}</ol>{!profile.instructions.length&&<p>No making steps were returned for this design.</p>}</div>:<div>{profile.warnings.map((w,i)=><div className="warning" key={i}>{w}</div>)}{profile.suggestions.map((s,i)=><p key={i} className="small">{s}</p>)}{profile.variations.length>0&&<><div className="eyebrow" style={{margin:'20px 0 8px'}}>Variations to try</div>{profile.variations.map((v,i)=><div className="material-line" key={i}><div><strong>{v.label}</strong><small>{v.description}</small></div><button className="btn btn-sm" data-testid={`button-variation-${i}`} onClick={()=>{form.reset(v.input);setStale(true);setTab('materials')}}>Use idea</button></div>)}</>}</div>}
+      </>:<div className="note">The visual sketch responds to your selections. Generate a preview for the actual materials and cost plan.</div>}</div>
+      <Assistant input={input}/>
+    </div></div></div></Shell>;
 }
-
+function Designs(){
+  const designs=useListTuzakaiDesigns();
+  return <Shell><div className="page"><PageHeading eyebrow="The collection / Saved work" title="Your designs." subtitle="Every idea you've kept, ready to revisit, refine, or make." action={<Link href="/create" className="btn btn-primary" data-testid="link-new-design"><Plus size={14}/> New design</Link>}/>{designs.isLoading?<Loading/>:designs.isError?<ErrorState retry={()=>designs.refetch()} message={errorText(designs.error)}/>:designs.data?.length?<div className="list">{designs.data.map(d=><DesignRow key={d.id} design={d}/>)}</div>:<div className="panel empty"><Layers2 size={29}/><h3>Nothing saved yet.</h3><p>Start a new piece in the workbench and save it here when the plan feels right.</p><Link href="/create" className="btn btn-primary" data-testid="link-empty-create">Open the workbench <ArrowRight size={14}/></Link></div>}</div></Shell>;
+}
+function Detail(){
+  const {id=''}=useParams<{id:string}>(),detail=useGetTuzakaiDesign(id,{query:{enabled:!!id,queryKey:getGetTuzakaiDesignQueryKey(id)}}),qc=useQueryClient(),[,navigate]=useLocation(),duplicate=useSaveTuzakaiDesign(),remove=useDeleteTuzakaiDesign(),[message,setMessage]=useState('');
+  const refresh=()=>{qc.invalidateQueries({queryKey:getListTuzakaiDesignsQueryKey()});qc.invalidateQueries({queryKey:getGetTuzakaiOverviewQueryKey()})};
+  const d=detail.data,p=d?.profile;
+  return <Shell><div className="page">{detail.isLoading?<Loading count={4}/>:detail.isError?<ErrorState retry={()=>detail.refetch()} message={errorText(detail.error)}/>:d&&p?<><Link href="/designs" className="btn btn-ghost btn-sm" style={{paddingLeft:0,marginBottom:14}} data-testid="link-back-designs"><ArrowLeft size={14}/> All designs</Link><PageHeading eyebrow={`Saved design / ${new Date(d.updatedAt).toLocaleDateString()}`} title={d.name} subtitle={p.description} action={<div style={{display:'flex',gap:7,flexWrap:'wrap'}}><Link href={`/designs/${id}/edit`} className="btn btn-primary" data-testid="link-detail-edit"><Pencil size={14}/> Edit design</Link><button className="btn" data-testid="button-print-design" onClick={()=>window.print()}><Download size={14}/> Print / Save as PDF</button></div>}/>
+    <div className="detail-grid"><div style={{display:'grid',gap:17,alignContent:'start'}}><PreviewStage input={p.input} label={p.previewLabel}/><div className="panel result-card"><div className="eyebrow" style={{marginBottom:12}}>Making instructions</div><h3>At the bench</h3><div className="result-meta"><span className="pill">{p.difficulty}</span><span className="pill">About {p.estimatedMinutes} min</span><span className="pill">Quantity {p.input.quantity}</span></div><ol className="ordered">{p.instructions.map((s,i)=><li key={i}>{s}</li>)}</ol>{p.warnings.map((w,i)=><div key={i} className="warning">{w}</div>)}</div></div><div style={{display:'grid',gap:17,alignContent:'start'}}><div className="panel result-card"><h3>Materials & costing</h3><CostPanel profile={p} overrides={p.input.priceOverrides} onOverride={()=>{}} updating={false} readOnly/><p className="small muted" style={{marginTop:14}}>To update a unit price, edit this design and recalculate the preview.</p></div><div className="panel result-card"><h3>Design specification</h3><div className="fields" style={{gap:15}}>{(['jewelryType','style','shape','material','color','decoration','finding','size','personalization'] as const).map(k=><div key={k}><div className="eyebrow" style={{fontSize:9,marginBottom:4}}>{k.replace(/([A-Z])/g,' $1')}</div><strong style={{fontSize:12}}>{p.input[k]||'—'}</strong></div>)}</div></div><Assistant input={p.input}/><div className="panel result-card"><h3>Manage this design</h3><div style={{display:'flex',gap:7,flexWrap:'wrap'}}><button className="btn" data-testid="button-detail-duplicate" disabled={duplicate.isPending} onClick={()=>duplicate.mutate({data:p.input},{onSuccess:next=>{refresh();navigate(`/designs/${next.id}`)},onError:e=>setMessage(errorText(e))})}><Copy size={14}/> Duplicate</button><button className="btn btn-danger" data-testid="button-detail-delete" disabled={remove.isPending} onClick={()=>{if(window.confirm(`Delete “${d.name}”? This cannot be undone.`))remove.mutate({id},{onSuccess:()=>{refresh();qc.removeQueries({queryKey:getGetTuzakaiDesignQueryKey(id)});navigate('/designs')},onError:e=>setMessage(errorText(e))})}}><Trash2 size={14}/> Delete</button></div>{message&&<div className="warning" role="alert">{message}</div>}</div></div></div></>:<ErrorState retry={()=>detail.refetch()} message="This design could not be found."/>}</div></Shell>;
+}
+function Materials(){
+  const query=useListTuzakaiComponents(),[search,setSearch]=useState(''),[category,setCategory]=useState('All');
+  const all=query.data?.filter(c=>c.active)??[],categories=['All',...Array.from(new Set(all.map(c=>c.category)))],filtered=all.filter(c=>(category==='All'||c.category===category)&&`${c.name} ${c.material} ${c.color} ${c.size}`.toLowerCase().includes(search.toLowerCase()));
+  return <Shell><div className="page"><PageHeading eyebrow="Reference / Materials catalog" title="Know your materials." subtitle="A read-only look at the components available to the design engine. Missing prices stay missing until you enter your own unit price in a design."/><div className="catalog-toolbar"><div style={{position:'relative',display:'flex',flex:'1',minWidth:190}}><Search size={15} style={{position:'absolute',left:12,top:12,color:'#917875'}}/><input style={{paddingLeft:35,width:'100%'}} data-testid="input-search-materials" placeholder="Search by name, color, material..." value={search} onChange={e=>setSearch(e.target.value)}/></div><select data-testid="select-material-category" value={category} onChange={e=>setCategory(e.target.value)}>{categories.map(c=><option key={c}>{c}</option>)}</select></div>
+    {query.isLoading?<Loading count={5}/>:query.isError?<ErrorState retry={()=>query.refetch()} message={errorText(query.error)}/>:!all.length?<div className="panel empty"><Gem size={29}/><h3>No materials in the catalog.</h3><p>When studio components are available, they will be listed here.</p></div>:!filtered.length?<div className="panel empty"><Search size={29}/><h3>No matching components.</h3><p>Try another name, category, or color.</p><button className="btn" data-testid="button-clear-search" onClick={()=>{setSearch('');setCategory('All')}}>Clear filters</button></div>:<div className="panel" style={{overflowX:'auto'}}><table className="catalog-table"><thead><tr><th>Component</th><th>Category</th><th>Details</th><th>Supplier</th><th>Unit price</th></tr></thead><tbody>{filtered.map(c=><tr key={c.id} data-testid={`row-component-${c.id}`}><td><strong>{c.name}</strong><div className="small muted">{c.jewelryTypes.join(', ')}</div></td><td>{c.category}</td><td>{[c.material,c.color,c.size].filter(Boolean).join(' · ')}</td><td>{c.supplier||'Not listed'}</td><td>{c.priceCents==null?<span className="missing" data-testid={`text-missing-${c.id}`}>Not configured</span>:<span data-testid={`text-price-${c.id}`}>{money(c.priceCents)} <span className="muted">/ {c.unit}</span></span>}</td></tr>)}</tbody></table></div>}<p className="small muted" style={{marginTop:17}}>Catalog prices are configured studio data. Your entered prices are specific to your design and do not change this catalog.</p></div></Shell>;
+}
+function Help(){
+  return <Shell><div className="page"><PageHeading eyebrow="Field notes / Help" title="A little guidance." subtitle="A short route from a first thought to a useful making plan."/><div className="help-grid"><div className="panel help-card"><div className="eyebrow">01 / Choose</div><h3>Set the design details</h3><p>Pick a jewelry type, style, shape, material, color, decoration, finding, and size. The sketch changes with your choices. Add personalization only if you need it.</p></div><div className="panel help-card"><div className="eyebrow">02 / Calculate</div><h3>Generate a preview</h3><p>Use Generate preview for a bill of materials, cost estimate, making instructions, warnings, and variations based on your current selections. Recalculate after making changes.</p></div><div className="panel help-card"><div className="eyebrow">03 / Price honestly</div><h3>Fill the gaps</h3><p>Some catalog components have no configured price. Their source is marked “Price missing.” Enter your actual price per unit, then recalculate. The app does not show a numeric total while any material price is missing.</p></div><div className="panel help-card"><div className="eyebrow">04 / Keep & make</div><h3>Save your work</h3><p>Save a design to return to it later. Open, edit, duplicate, or delete it from your collection. On a saved design, use “Print / Save as PDF” to create a printable document through your browser.</p></div></div><div className="panel help-card" style={{marginTop:15,background:'#f1e5dc'}}><div className="eyebrow">Good to know</div><h3>Estimates need your judgment.</h3><p>Time, quantities, and suggested retail are planning aids, not supplier quotes. Check fit, safety, finishing, and your actual purchase costs before making or selling a piece.</p><Link href="/create" className="btn btn-primary" style={{marginTop:20}} data-testid="link-help-create">Open the workbench <ArrowRight size={14}/></Link></div></div></Shell>;
+}
+function NotFound(){return <Shell><div className="page"><div className="panel empty"><BookOpen size={30}/><h2>That page isn't on the bench.</h2><p>Return to the workspace to pick up your design.</p><Link href="/" className="btn btn-primary" data-testid="link-not-found-home">Back to overview</Link></div></div></Shell>}
+function RoutedErrorBoundary({children}:{children:ReactNode}){const [location]=useLocation();return <ErrorBoundary resetKey={location}>{children}</ErrorBoundary>}
+function Router(){return <RoutedErrorBoundary><Switch><Route path="/" component={Home}/><Route path="/create" component={Editor}/><Route path="/designs" component={Designs}/><Route path="/designs/:id/edit" component={Editor}/><Route path="/designs/:id" component={Detail}/><Route path="/materials" component={Materials}/><Route path="/help" component={Help}/><Route component={NotFound}/></Switch></RoutedErrorBoundary>}
+function App(){return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/,'')}><Router/></WouterRouter><Toaster/></TooltipProvider></QueryClientProvider>}
 export default App;
