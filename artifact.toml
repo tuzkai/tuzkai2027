@@ -1,17 +1,28 @@
-kind = "design"
-previewPath = "/__mockup"
-title = "Canvas"
+kind = "web"
+previewPath = "/"
+title = "TuzakAI by Sztuzk"
+description = "AI tools and digital products for creative entrepreneurs, with a jewelry designer and practical legacy Studio tools."
 version = "1.0.0"
-id = "XegfDyZt7HqfW2Bb8Ghoy"
+id = "artifacts/sztuzk-jewelry-studio"
+router = "path"
 
 [[services]]
-localPort = 8081
-name = "Component Preview Server"
-paths = ["/__mockup"]
-
-[services.env]
-PORT = "8081"
-BASE_PATH = "/__mockup"
+name = "web"
+paths = [ "/" ]
+localPort = 25557
 
 [services.development]
-run = "pnpm --filter @workspace/mockup-sandbox run dev"
+run = "pnpm --filter @workspace/sztuzk-jewelry-studio run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/sztuzk-jewelry-studio", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/sztuzk-jewelry-studio/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25557"
+BASE_PATH = "/"
