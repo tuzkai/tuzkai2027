@@ -25,6 +25,8 @@ pnpm --filter @workspace/api-server run start
 
 The Render Blueprint runs the install and build commands for you. Render sets
 `PORT` at runtime; do not hardcode it in the service settings.
+Keep Render's Root Directory at the repository root so pnpm can see every
+workspace package.
 
 ## Required Render environment
 
@@ -59,3 +61,11 @@ contents to a Git provider, then create a Render Blueprint from that repository.
 Keep `render.yaml` at the repository root. Render needs the source repository
 to build and track future changes; the ZIP itself does not contain runtime
 secrets or an exported database.
+
+### Repairing an existing flattened GitHub checkout
+
+Work on a new branch or backup first. Extract this source bundle into the
+repository root so it restores `artifacts/`, `lib/`, and `scripts/`. Verify the
+three application manifests exist under `artifacts/` before removing only the
+duplicate flattened app directories at the root. Keep unrelated root files and
+helper scripts; this repair should not remove integrations or application data.
